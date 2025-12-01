@@ -1,5 +1,6 @@
 import './Dashboard.css';
 import mapboxLogo from '../assets/mapbox-logo.png';
+import maplibreLogo from '../assets/maplibre-logo.png';
 
 interface DashboardProps {
   onDemoSelect: (demoId: string) => void;
@@ -35,6 +36,19 @@ export default function Dashboard({ onDemoSelect }: DashboardProps) {
             <span className="demo-icon">🗺️</span>
           </div>
           <span className="demo-label">Deck.gl Mapbox</span>
+        </button>
+        <button 
+          className="demo-card maplibre-card"
+          onClick={() => onDemoSelect('deckgl-maplibre')}
+        >
+          <div className="demo-logo-container">
+            <img 
+              src={maplibreLogo} 
+              alt="MapLibre Logo" 
+              className="demo-logo"
+            />
+          </div>
+          <span className="demo-label">Deck.gl MapLibre</span>
         </button>
       </div>
     </div>

@@ -17,6 +17,7 @@
     "deck.gl": "^9.2.2",
     "h3-js": "^4.3.0",
     "mapbox-gl": "^3.16.0",
+    "maplibre-gl": "^5.13.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-map-gl": "^8.1.0"
