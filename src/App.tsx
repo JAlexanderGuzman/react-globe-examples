@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import './App.css';
-import Dashboard from './components/Dashboard';
-import { MapboxDemo } from './demos/mapbox/MapboxDemo';
+import { useState } from "react";
+import "./App.css";
+import Dashboard from "./components/Dashboard";
+import { MapboxDemo } from "./demos/mapbox/MapboxDemo";
 
 function App() {
   const [activeDemo, setActiveDemo] = useState<string | null>(null);
@@ -23,7 +23,7 @@ function App() {
           <button className="back-button" onClick={handleBackToDashboard}>
             ← Back to Dashboard
           </button>
-          {activeDemo === 'mapbox' && <MapboxDemo />}
+          {activeDemo === "mapbox" && <MapboxDemo />}
         </div>
       )}
     </div>
