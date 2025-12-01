@@ -114,6 +114,15 @@
   /* Specific styles for Mapbox card if needed */
 }
 
+.deckgl-card {
+  /* Specific styles for Deck.gl Mapbox card if needed */
+}
+
+.demo-icon {
+  font-size: 3rem;
+  display: block;
+}
+
 @media (max-width: 768px) {
   .dashboard-title {
     font-size: 2.5rem;

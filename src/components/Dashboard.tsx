@@ -27,6 +27,15 @@ export default function Dashboard({ onDemoSelect }: DashboardProps) {
           </div>
           <span className="demo-label">Mapbox</span>
         </button>
+        <button 
+          className="demo-card deckgl-card"
+          onClick={() => onDemoSelect('deckgl-mapbox')}
+        >
+          <div className="demo-logo-container">
+            <span className="demo-icon">🗺️</span>
+          </div>
+          <span className="demo-label">Deck.gl Mapbox</span>
+        </button>
       </div>
     </div>
   );

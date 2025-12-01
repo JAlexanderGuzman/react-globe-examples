@@ -2,6 +2,7 @@ import { useState } from "react";
 import "./App.css";
 import Dashboard from "./components/Dashboard";
 import { MapboxDemo } from "./demos/mapbox/MapboxDemo";
+import { DeckGlMapboxDemo } from "./demos/deckgl-mapbox/DeckGlMapboxDemo";
 
 function App() {
   const [activeDemo, setActiveDemo] = useState<string | null>(null);
@@ -24,6 +25,7 @@ function App() {
             ← Back to Dashboard
           </button>
           {activeDemo === "mapbox" && <MapboxDemo />}
+          {activeDemo === "deckgl-mapbox" && <DeckGlMapboxDemo />}
         </div>
       )}
     </div>
