@@ -1,27 +1,18 @@
-import { useCallback, useState, useRef, useMemo, useEffect } from "react";
+import { useCallback, useRef, useMemo } from "react";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { ArcLayer } from "@deck.gl/layers";
-import { H3HexagonLayer } from "@deck.gl/geo-layers";
-import { scaleLog } from "d3-scale";
-import { cellToLatLng } from "h3-js";
-import { load } from "@loaders.gl/core";
-import { CSVLoader } from "@loaders.gl/csv";
 import { Map, NavigationControl, useControl, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./DeckGlMapboxDemo.css";
-
-const DATA_URL =
-  "https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/safegraph/sf-pois.csv";
+import flightsData from "../../flights.json";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_API_KEY;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const colorScale = (scaleLog() as any).domain([10, 100, 1000, 10000]).range([
-  [255, 255, 178],
-  [254, 204, 92],
-  [253, 141, 60],
-  [227, 26, 28],
-]);
+interface Flight {
+  start: [number, number];
+  end: [number, number];
+  progress: number;
+}
 
 const buildings3DLayer = {
   id: "3d-buildings",
@@ -43,75 +34,40 @@ function DeckGLOverlay(props: any) {
 }
 
 export function DeckGlMapboxDemo() {
-  const [selectedPOI, setSelectedPOI] = useState("8a283082aa17fff");
-  const [firstLabelLayerId, setFirstLabelLayerId] = useState<
-    string | undefined
-  >();
-  const [data, setData] = useState<any>(null);
   const mapRef = useRef<any>(null);
 
-  useEffect(() => {
-    load(DATA_URL, CSVLoader).then((loadedData) => {
-      setData(loadedData.data);
-    });
-  }, []);
-
   const onMapLoad = useCallback(() => {
-    if (mapRef.current) {
-      const map = mapRef.current.getMap();
-      if (map) {
-        setFirstLabelLayerId(getFirstLabelLayerId(map.getStyle()));
-      }
-    }
+    // Map loaded
   }, []);
 
-  const selectedPOICentroid = useMemo(() => {
-    const [lat, lng] = cellToLatLng(selectedPOI);
-    return [lng, lat];
-  }, [selectedPOI]);
-
-  const arcs = useMemo(
-    () => filterArcs(data, selectedPOI),
-    [data, selectedPOI]
-  );
-
-  const hexes = useMemo(() => aggregateHexes(data), [data]);
+  const flights = flightsData as Flight[];
 
   const layers = useMemo(() => {
-    if (!data || !arcs || !hexes) return [];
-
     const arcLayer = new ArcLayer({
-      id: "deckgl-connections",
-      data: arcs,
+      id: "flight-arcs",
+      data: flights,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      getSourcePosition: () => selectedPOICentroid as any,
+      getSourcePosition: (d: Flight) => d.start as any,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      getTargetPosition: (d: any) => [d.home_lng, d.home_lat] as any,
-      getSourceColor: [255, 0, 128],
-      getTargetColor: [0, 200, 255],
-      getWidth: (d: any) => Math.max(2, d.count / 15),
-    });
-
-    const poiLayer = new H3HexagonLayer({
-      id: "deckgl-pois",
-      data: hexes,
-      opacity: 0.4,
+      getTargetPosition: (d: Flight) => d.end as any,
+      getSourceColor: [64, 196, 255, 200],
+      getTargetColor: [255, 64, 196, 200],
+      getWidth: 4,
+      getHeight: 1,
+      numSegments: 100,
       pickable: true,
-      autoHighlight: true,
-      onClick: ({ object }: any) => object && setSelectedPOI(object.hex),
-      getHexagon: (d: any) => d.hex,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      getFillColor: (d: any) => {
-        const color = colorScale(d.count);
-        return [color[0], color[1], color[2], 255];
-      },
-      extruded: false,
-      stroked: false,
-      beforeId: firstLabelLayerId,
+      greatCircle: true,
+      widthMinPixels: 1,
+      widthMaxPixels: 4,
     });
 
-    return [poiLayer, arcLayer];
-  }, [arcs, hexes, selectedPOICentroid, firstLabelLayerId, data]);
+    const layersArray: any[] = [arcLayer];
+
+    // Note: Airplane layer removed - ScatterplotLayer doesn't properly position at arc height
+    // with MapboxOverlay. Would need SimpleMeshLayer with proper 3D geometry to work correctly.
+
+    return layersArray;
+  }, [flights]);
 
   if (!MAPBOX_TOKEN) {
     return (
@@ -138,9 +94,9 @@ export function DeckGlMapboxDemo() {
         }}
         projection="mercator"
         initialViewState={{
-          longitude: -122.4034,
-          latitude: 37.7845,
-          zoom: 15.5,
+          longitude: 0,
+          latitude: 20,
+          zoom: 2,
           bearing: 0,
           pitch: 0,
         }}
@@ -159,36 +115,4 @@ export function DeckGlMapboxDemo() {
       </div>
     </div>
   );
-}
-
-function filterArcs(data: any, selectedPOI: string) {
-  if (!data) {
-    return null;
-  }
-  return data.filter((d: any) => d.hex === selectedPOI);
-}
-
-function aggregateHexes(data: any) {
-  if (!data) {
-    return null;
-  }
-  const result: any = {};
-  for (const object of data) {
-    if (!result[object.hex]) {
-      result[object.hex] = { hex: object.hex, count: 0 };
-    }
-    result[object.hex].count += object.count;
-  }
-  return Object.values(result);
-}
-
-function getFirstLabelLayerId(style: any) {
-  const layers = style.layers;
-  // Find the index of the first symbol (i.e. label) layer in the map style
-  for (let i = 0; i < layers.length; i++) {
-    if (layers[i].type === "symbol") {
-      return layers[i].id;
-    }
-  }
-  return undefined;
 }
