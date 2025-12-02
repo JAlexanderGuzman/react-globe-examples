@@ -1,4 +1,3 @@
-import { useState } from "react";
 import "./MapControls.css";
 import type { MapProjection } from "./types";
 
@@ -28,9 +27,7 @@ export function MapControls({
       </button>
       <button
         type="button"
-        className={`control-btn ${
-          projection === "mercator" ? "active" : ""
-        }`}
+        className={`control-btn ${projection === "mercator" ? "active" : ""}`}
         onClick={() => onProjectionChange("mercator")}
         aria-label="Mercator projection"
         title="Flat projection"
