@@ -1,20 +1,24 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import "./MapControls.css";
-import type { MapProjection, MapStyle, MapStyleOption } from "../types";
+import type { MapProjection, MapStyle, MapStyleOption, LayerType } from "./types";
 
 interface MapControlsProps {
   projection: MapProjection;
   mapStyle: MapStyle;
+  layerType: LayerType;
   onProjectionChange: (projection: MapProjection) => void;
   onStyleChange: (style: MapStyle) => void;
+  onLayerTypeChange: (layerType: LayerType) => void;
   styles: MapStyleOption[];
 }
 
 export function MapControls({
   projection,
   mapStyle,
+  layerType,
   onProjectionChange,
   onStyleChange,
+  onLayerTypeChange,
   styles,
 }: MapControlsProps) {
   const [showStyles, setShowStyles] = useState(false);
@@ -55,26 +59,53 @@ export function MapControls({
     <div className="map-controls">
       <button
         type="button"
-        className={`control-btn ${
-          projection === "globe" ? "active" : ""
+        className={`control-btn ${projection === "globe" ? "active" : ""} ${
+          layerType === "arc" ? "disabled" : ""
         }`}
-        onClick={() => onProjectionChange("globe")}
+        onClick={() => {
+          if (layerType !== "arc") {
+            onProjectionChange("globe");
+          }
+        }}
         aria-label="Globe projection"
-        title="Globe projection"
+        title={
+          layerType === "arc"
+            ? "Globe mode not available with Arc Layer"
+            : "Globe projection"
+        }
+        disabled={layerType === "arc"}
       >
         🌍
       </button>
       <button
         type="button"
-        className={`control-btn ${
-          projection === "mercator" ? "active" : ""
-        }`}
+        className={`control-btn ${projection === "mercator" ? "active" : ""}`}
         onClick={() => onProjectionChange("mercator")}
         aria-label="Mercator projection"
         title="Flat projection"
       >
         🗺️
       </button>
+      <div className="layer-controls">
+        <button
+          type="button"
+          className={`control-btn ${layerType === "animated" ? "active" : ""}`}
+          onClick={() => onLayerTypeChange("animated")}
+          aria-label="Animated arcs"
+          title="Animated arcs"
+        >
+          ⚡
+        </button>
+        <button
+          type="button"
+          className={`control-btn ${layerType === "arc" ? "active" : ""}`}
+          onClick={() => onLayerTypeChange("arc")}
+          aria-label="Static arcs"
+          title="Static arcs"
+        >
+          ➖
+        </button>
+      </div>
       <div className="style-controls">
         <button
           type="button"

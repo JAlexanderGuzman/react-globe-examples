@@ -411,15 +411,29 @@ export function MapContainer() {
     const url = URL.createObjectURL(svgBlob);
 
     img.onload = () => {
-      if (!map.hasImage("airplane-icon")) {
-        map.addImage("airplane-icon", img);
-        setIconLoaded(true);
+      if (!map || !isMapLoaded) return;
+      try {
+        if (!map.hasImage("airplane-icon")) {
+          map.addImage("airplane-icon", img);
+          setIconLoaded(true);
+        }
+      } catch (error) {
+        // Map may be destroyed, ignore errors
       }
     };
     img.src = url;
 
     return () => {
       URL.revokeObjectURL(url);
+      if (map && isMapLoaded) {
+        try {
+          if (map.hasImage("airplane-icon")) {
+            map.removeImage("airplane-icon");
+          }
+        } catch (error) {
+          // Map may be destroyed, ignore errors
+        }
+      }
     };
   }, [map, isMapLoaded, iconLoaded]);
 
@@ -467,11 +481,16 @@ export function MapContainer() {
     }
 
     return () => {
-      if (map.getLayer("flight-arcs")) {
-        map.removeLayer("flight-arcs");
-      }
-      if (map.getSource("flights")) {
-        map.removeSource("flights");
+      if (!map || !isMapLoaded) return;
+      try {
+        if (map.getLayer("flight-arcs")) {
+          map.removeLayer("flight-arcs");
+        }
+        if (map.getSource("flights")) {
+          map.removeSource("flights");
+        }
+      } catch (error) {
+        // Map may be destroyed, ignore errors
       }
     };
   }, [map, isMapLoaded, flightGeoJSON]);
@@ -509,11 +528,16 @@ export function MapContainer() {
     }
 
     return () => {
-      if (map.getLayer("airplanes")) {
-        map.removeLayer("airplanes");
-      }
-      if (map.getSource("airplanes")) {
-        map.removeSource("airplanes");
+      if (!map || !isMapLoaded) return;
+      try {
+        if (map.getLayer("airplanes")) {
+          map.removeLayer("airplanes");
+        }
+        if (map.getSource("airplanes")) {
+          map.removeSource("airplanes");
+        }
+      } catch (error) {
+        // Map may be destroyed, ignore errors
       }
     };
   }, [map, isMapLoaded, iconLoaded, airplanesGeoJSON]);

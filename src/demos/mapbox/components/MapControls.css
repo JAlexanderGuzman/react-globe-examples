@@ -4,68 +4,58 @@
   right: 1rem;
   z-index: 2000;
   pointer-events: auto;
-}
-
-.controls-row {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: row;
+  gap: 4px;
   align-items: center;
-}
-
-.projection-controls {
-  display: flex;
-  gap: 0.25rem;
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
-  padding: 0.25rem;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.projection-btn {
-  width: 36px;
-  height: 36px;
+.control-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  font-size: 1.25rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: rgba(255, 255, 255, 0.7);
+  width: 36px;
+  height: 36px;
+  box-sizing: border-box;
 }
 
-.projection-btn:hover {
+.control-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
-.projection-btn.active {
+.control-btn.active {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .style-controls {
   position: relative;
+  flex-shrink: 0;
 }
 
-.style-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.9);
+.control-btn.style-toggle {
+  width: auto;
+  padding: 0 0.75rem;
   font-size: 0.8125rem;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  gap: 0.5rem;
   min-width: 100px;
 }
 
