@@ -59,6 +59,15 @@ export default function Dashboard({ onDemoSelect }: DashboardProps) {
           </div>
           <span className="demo-label">vasturiano globe.gl</span>
         </button>
+        <button 
+          className="demo-card full-ai-card"
+          onClick={() => onDemoSelect('full-ai')}
+        >
+          <div className="demo-logo-container">
+            <span className="demo-icon">🤖</span>
+          </div>
+          <span className="demo-label">Full AI</span>
+        </button>
       </div>
     </div>
   );

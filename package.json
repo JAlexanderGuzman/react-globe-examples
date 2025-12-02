@@ -13,6 +13,7 @@
     "@deck.gl/mapbox": "^9.2.2",
     "@loaders.gl/core": "^4.3.4",
     "@loaders.gl/csv": "^4.3.4",
+    "@types/three": "^0.181.0",
     "d3-scale": "^4.0.2",
     "deck.gl": "^9.2.2",
     "globe.gl": "^2.45.0",
@@ -21,7 +22,8 @@
     "maplibre-gl": "^5.13.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-map-gl": "^8.1.0"
+    "react-map-gl": "^8.1.0",
+    "three": "^0.181.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
