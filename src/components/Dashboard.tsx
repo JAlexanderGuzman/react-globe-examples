@@ -68,6 +68,15 @@ export default function Dashboard({ onDemoSelect }: DashboardProps) {
           </div>
           <span className="demo-label">Full AI</span>
         </button>
+        <button 
+          className="demo-card definitive-card"
+          onClick={() => onDemoSelect('definitive')}
+        >
+          <div className="demo-logo-container">
+            <span className="demo-icon">⭐</span>
+          </div>
+          <span className="demo-label">Definitive</span>
+        </button>
       </div>
     </div>
   );

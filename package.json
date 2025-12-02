@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@deck.gl/mapbox": "^9.2.2",
+    "@deck.gl/mesh-layers": "^9.2.2",
     "@loaders.gl/core": "^4.3.4",
     "@loaders.gl/csv": "^4.3.4",
     "@types/three": "^0.181.0",
