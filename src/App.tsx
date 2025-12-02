@@ -4,6 +4,7 @@ import Dashboard from "./components/Dashboard";
 import { MapboxDemo } from "./demos/mapbox/MapboxDemo";
 import { DeckGlMapboxDemo } from "./demos/deckgl-mapbox/DeckGlMapboxDemo";
 import { DeckGlMapLibreDemoWrapper } from "./demos/deckgl-maplibre/DeckGlMapLibreDemo";
+import { GlobeGlDemo } from "./demos/globe-gl/GlobeGlDemo";
 
 function App() {
   const [activeDemo, setActiveDemo] = useState<string | null>(null);
@@ -28,6 +29,7 @@ function App() {
           {activeDemo === "mapbox" && <MapboxDemo />}
           {activeDemo === "deckgl-mapbox" && <DeckGlMapboxDemo />}
           {activeDemo === "deckgl-maplibre" && <DeckGlMapLibreDemoWrapper />}
+          {activeDemo === "globe-gl" && <GlobeGlDemo />}
         </div>
       )}
     </div>
