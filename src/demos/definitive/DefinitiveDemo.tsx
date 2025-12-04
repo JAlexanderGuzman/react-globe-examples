@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Map, useControl } from "react-map-gl/maplibre";
-import type { ViewState } from "react-map-gl/maplibre";
+import type { ViewState, MapRef } from "react-map-gl/maplibre";
 import { MapboxOverlay as DeckOverlay } from "@deck.gl/mapbox";
 import { ScenegraphLayer } from "@deck.gl/mesh-layers";
 
@@ -13,6 +13,7 @@ import AnimatedArcLayer from "./animated-arc-group-layer";
 import { MapControls } from "./MapControls";
 import type { MapProjection } from "./types";
 import flightsData from "../../flights.json";
+import "./DefinitiveDemo.css";
 
 const INITIAL_VIEW_STATE: ViewState = {
   longitude: 0,
@@ -120,9 +121,60 @@ function getPositionAtProgress(
 const AIRPLANE_MODEL_URL =
   "https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/scenegraph-layer/airplane.glb";
 
+function FlightList({
+  flights,
+  onFlightClick,
+  selectedFlightIndex,
+}: {
+  flights: Flight[];
+  onFlightClick: (index: number, flight: Flight) => void;
+  selectedFlightIndex: number | null;
+}) {
+  return (
+    <div className="flight-list-panel">
+      <h3 className="flight-list-title">Flights</h3>
+      <div className="flight-list">
+        {flights.map((flight, index) => (
+          <div
+            key={index}
+            className={`flight-item ${
+              selectedFlightIndex === index ? "selected" : ""
+            }`}
+            onClick={() => onFlightClick(index, flight)}
+          >
+            <div className="flight-item-header">
+              <span className="flight-number">Flight {index + 1}</span>
+              <span className="flight-progress">{flight.progress}%</span>
+            </div>
+            <div className="flight-coordinates">
+              <div className="coordinate-row">
+                <span className="coordinate-label">Start:</span>
+                <span className="coordinate-value">
+                  [{flight.start[0].toFixed(4)}, {flight.start[1].toFixed(4)}]
+                </span>
+              </div>
+              <div className="coordinate-row">
+                <span className="coordinate-label">End:</span>
+                <span className="coordinate-value">
+                  [{flight.end[0].toFixed(4)}, {flight.end[1].toFixed(4)}]
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DefinitiveDemo() {
   const [currentTime, setCurrentTime] = useState(0);
   const [projection, setProjection] = useState<MapProjection>("globe");
+  const [selectedFlightIndex, setSelectedFlightIndex] = useState<number | null>(
+    null
+  );
+  const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
+  const mapRef = useRef<MapRef>(null);
 
   const flights = flightsData as Flight[];
 
@@ -141,6 +193,7 @@ export function DefinitiveDemo() {
       lon2: number;
       lat2: number;
       alt2: number;
+      flightIndex: number;
     }> = [];
 
     flights.forEach((flight, index) => {
@@ -160,6 +213,7 @@ export function DefinitiveDemo() {
           lon2: flight.end[0],
           lat2: flight.end[1],
           alt2: 0,
+          flightIndex: index,
         });
       }
     });
@@ -244,7 +298,7 @@ export function DefinitiveDemo() {
     if (animatedFlights.length === 0) return null;
 
     const animatedLayer = new AnimatedArcLayer<(typeof animatedFlights)[0]>({
-      id: "flights-animated",
+      id: `flights-animated-${selectedFlightIndex ?? "none"}`,
       data: animatedFlights,
       getSourcePosition: (d: (typeof animatedFlights)[0]) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -259,8 +313,23 @@ export function DefinitiveDemo() {
       getHeight: 0.3,
       getWidth: 2,
       timeRange,
-      getSourceColor: [255, 255, 255, 255], // White
-      getTargetColor: [255, 255, 255, 255], // White
+      getSourceColor: (d: (typeof animatedFlights)[0]) => {
+        // Blue color for selected: rgba(59, 130, 246, 255)
+        // White color for unselected: rgba(255, 255, 255, 255)
+        const isSelected = selectedFlightIndex === d.flightIndex;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (isSelected ? [59, 130, 246, 255] : [255, 255, 255, 255]) as any;
+      },
+      getTargetColor: (d: (typeof animatedFlights)[0]) => {
+        const isSelected = selectedFlightIndex === d.flightIndex;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (isSelected ? [59, 130, 246, 255] : [255, 255, 255, 255]) as any;
+      },
+      updateTriggers: {
+        getSourceColor: [selectedFlightIndex],
+        getTargetColor: [selectedFlightIndex],
+        data: selectedFlightIndex,
+      },
       parameters: { cullMode: "none" },
       beforeId: "watername_ocean",
       greatCircle: true,
@@ -287,7 +356,46 @@ export function DefinitiveDemo() {
     });
 
     return [animatedLayer, scenegraphLayer];
-  }, [animatedFlights, timeRange, airplaneData]);
+  }, [animatedFlights, timeRange, airplaneData, selectedFlightIndex]);
+
+  const handleFlightClick = useCallback((index: number, flight: Flight) => {
+    setSelectedFlightIndex(index);
+
+    // Calculate center point between start and end
+    const centerLon = (flight.start[0] + flight.end[0]) / 2;
+    const centerLat = (flight.start[1] + flight.end[1]) / 2;
+
+    // Calculate bounds to fit both points
+    const minLon = Math.min(flight.start[0], flight.end[0]);
+    const maxLon = Math.max(flight.start[0], flight.end[0]);
+    const minLat = Math.min(flight.start[1], flight.end[1]);
+    const maxLat = Math.max(flight.start[1], flight.end[1]);
+
+    // Calculate zoom level based on distance
+    const lonDiff = maxLon - minLon;
+    const latDiff = maxLat - minLat;
+    const maxDiff = Math.max(lonDiff, latDiff);
+
+    // Estimate zoom level (adjust these values as needed)
+    let zoom = 2;
+    if (maxDiff < 0.1) zoom = 6;
+    else if (maxDiff < 0.5) zoom = 5;
+    else if (maxDiff < 1) zoom = 4;
+    else if (maxDiff < 5) zoom = 3;
+    else zoom = 2;
+
+    // Use the map ref to fly to the location
+    if (mapRef.current) {
+      const map = mapRef.current.getMap();
+      if (map && typeof map.flyTo === "function") {
+        map.flyTo({
+          center: [centerLon, centerLat],
+          zoom: zoom,
+          duration: 1500,
+        });
+      }
+    }
+  }, []);
 
   return (
     <div
@@ -301,10 +409,12 @@ export function DefinitiveDemo() {
       }}
     >
       <Map
+        ref={mapRef}
         key={`${projection}`}
         projection={projection}
         id="map"
-        initialViewState={INITIAL_VIEW_STATE}
+        {...viewState}
+        onMove={(evt) => setViewState(evt.viewState)}
         mapStyle={DARK_STYLE_URL}
         dragRotate={false}
         maxPitch={0}
@@ -312,6 +422,11 @@ export function DefinitiveDemo() {
       >
         {layers && <DeckGLOverlay layers={layers} interleaved={true} />}
       </Map>
+      <FlightList
+        flights={flights}
+        onFlightClick={handleFlightClick}
+        selectedFlightIndex={selectedFlightIndex}
+      />
       <MapControls projection={projection} onProjectionChange={setProjection} />
     </div>
   );

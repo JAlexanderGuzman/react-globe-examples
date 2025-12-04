@@ -1,2 +1,129 @@
 /* Styles for DefinitiveDemo */
 
+.flight-list-panel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 320px;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 10;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.flight-list-title {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.flight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.flight-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.flight-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateX(4px);
+}
+
+.flight-item.selected {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+}
+
+.flight-item.selected .flight-number {
+  color: #60a5fa;
+}
+
+.flight-item.selected .coordinate-label {
+  color: rgba(147, 197, 253, 0.8);
+}
+
+.flight-item.selected .coordinate-value {
+  color: #93c5fd;
+}
+
+.flight-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.flight-number {
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.flight-progress {
+  color: #64ff64;
+  font-weight: 500;
+  font-size: 13px;
+  background: rgba(100, 255, 100, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.flight-coordinates {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.coordinate-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.coordinate-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.coordinate-value {
+  color: #fff;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+}
+
+/* Scrollbar styling */
+.flight-list-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.flight-list-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.flight-list-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.flight-list-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
