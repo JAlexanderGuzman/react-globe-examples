@@ -33,12 +33,14 @@ export type AnimatedArcLayerProps<DataT = any> = _AnimatedArcLayerProps<DataT>;
 type _AnimatedArcLayerProps<DataT = any> = {
   getSourceTimestamp?: (d: DataT) => number;
   getTargetTimestamp?: (d: DataT) => number;
+  getProgress?: (d: DataT) => number;
   timeRange?: [number, number];
 };
 
 const defaultProps = {
   getSourceTimestamp: { type: "accessor", value: 0 },
   getTargetTimestamp: { type: "accessor", value: 1 },
+  getProgress: { type: "accessor", value: 0 },
   timeRange: { type: "array", compare: true, value: [0, 1] },
 } as DefaultProps<_AnimatedArcLayerProps>;
 
@@ -56,13 +58,20 @@ export default class AnimatedArcLayer<
       "vs:#decl": `\
 in float instanceSourceTimestamp;
 in float instanceTargetTimestamp;
+in float instanceProgress;
 out float vTimestamp;
+out float vProgress;
+out float vSegmentRatio;
 `,
       "vs:#main-end": `\
 vTimestamp = mix(instanceSourceTimestamp, instanceTargetTimestamp, segmentRatio);
+vProgress = instanceProgress / 100.0;
+vSegmentRatio = segmentRatio;
 `,
       "fs:#decl": `\
 in float vTimestamp;
+in float vProgress;
+in float vSegmentRatio;
 `,
       "fs:#main-start": `\
 if (vTimestamp < trips.timeRange.x || vTimestamp > trips.timeRange.y) {
@@ -71,6 +80,10 @@ if (vTimestamp < trips.timeRange.x || vTimestamp > trips.timeRange.y) {
 `,
       "fs:DECKGL_FILTER_COLOR": `\
 color.a *= (vTimestamp - trips.timeRange.x) / (trips.timeRange.y - trips.timeRange.x);
+
+if (abs(vSegmentRatio - vProgress) < 0.03) {
+  color.rgb = vec3(1.0, 0.0, 0.0);
+}
 `,
     };
     shaders.modules = [...shaders.modules, tripsUniforms];
@@ -90,6 +103,10 @@ color.a *= (vTimestamp - trips.timeRange.x) / (trips.timeRange.y - trips.timeRan
           size: 1,
           accessor: "getTargetTimestamp",
         },
+        instanceProgress: {
+          size: 1,
+          accessor: "getProgress",
+        },
       });
     }
   }
@@ -105,4 +122,3 @@ color.a *= (vTimestamp - trips.timeRange.x) / (trips.timeRange.y - trips.timeRan
     super.draw(params);
   }
 }
-

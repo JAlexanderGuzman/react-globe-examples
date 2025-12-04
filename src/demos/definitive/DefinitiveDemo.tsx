@@ -153,6 +153,7 @@ export function DefinitiveDemo() {
       lat2: number;
       alt2: number;
       flightIndex: number;
+      progress: number;
     }> = [];
 
     flights.forEach((flight, index) => {
@@ -173,6 +174,7 @@ export function DefinitiveDemo() {
           lat2: flight.end[1],
           alt2: 0,
           flightIndex: index,
+          progress: flight.progress,
         });
       }
     });
@@ -233,12 +235,10 @@ export function DefinitiveDemo() {
     const maxDiff = Math.max(lonDiff, latDiff);
 
     // Estimate zoom level (adjust these values as needed)
-    let zoom = 2;
-    if (maxDiff < 0.1) zoom = 6;
-    else if (maxDiff < 0.5) zoom = 5;
-    else if (maxDiff < 1) zoom = 4;
-    else if (maxDiff < 5) zoom = 3;
-    else zoom = 2;
+    // Use a simple linear formula: zoom = 8 - (maxDiff * scale), clamped to [3, 8]
+    // You can tweak scale (e.g., 5) for how fast zoom drops with distance
+    const scale = 5;
+    const zoom = Math.max(3, Math.min(9, 9 - maxDiff * scale));
 
     // Set flight to focus, which will trigger useEffect to fly to location
     setFlightToFocus({
@@ -264,6 +264,7 @@ export function DefinitiveDemo() {
       },
       getSourceTimestamp: (d: (typeof animatedFlights)[0]) => d.time1,
       getTargetTimestamp: (d: (typeof animatedFlights)[0]) => d.time2,
+      getProgress: (d: (typeof animatedFlights)[0]) => d.progress,
       getHeight: 0.2,
       getWidth: 3,
       timeRange,
