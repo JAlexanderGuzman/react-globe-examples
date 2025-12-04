@@ -23,7 +23,7 @@ const INITIAL_VIEW_STATE: ViewState = {
   padding: { top: 0, bottom: 0, left: 0, right: 0 },
 };
 
-const ANIMATION_SPEED = 5; // Time increment per frame (milliseconds) - increased for faster animation
+const ANIMATION_SPEED = 10; // Time increment per frame (milliseconds) - increased for faster animation
 const TIME_WINDOW = 4000; // Time window in milliseconds - increased to show more flights continuously
 const DARK_STYLE_URL =
   "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
@@ -50,6 +50,18 @@ function FlightList({
   onFlightClick: (index: number, flight: Flight) => void;
   selectedFlightIndex: number | null;
 }) {
+  const itemRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
+
+  // Scroll to selected item when it changes
+  useEffect(() => {
+    if (selectedFlightIndex !== null && itemRefs.current[selectedFlightIndex]) {
+      itemRefs.current[selectedFlightIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [selectedFlightIndex]);
+
   return (
     <div className="flight-list-panel">
       <h3 className="flight-list-title">Flights</h3>
@@ -57,6 +69,9 @@ function FlightList({
         {flights.map((flight, index) => (
           <div
             key={index}
+            ref={(el) => {
+              itemRefs.current[index] = el;
+            }}
             className={`flight-item ${
               selectedFlightIndex === index ? "selected" : ""
             }`}
@@ -94,9 +109,33 @@ export function DefinitiveDemo() {
     null
   );
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
+  const [flightToFocus, setFlightToFocus] = useState<{
+    center: [number, number];
+    zoom: number;
+  } | null>(null);
   const mapRef = useRef<MapRef>(null);
 
   const flights = flightsData as Flight[];
+
+  // Handle map flyTo when flightToFocus changes
+  useEffect(() => {
+    if (!flightToFocus || !mapRef.current) return;
+
+    const map = mapRef.current.getMap();
+    if (map && typeof map.flyTo === "function") {
+      map.flyTo({
+        center: flightToFocus.center,
+        zoom: flightToFocus.zoom,
+        duration: 1500,
+      });
+    }
+    // Reset after a delay to avoid cascading renders
+    const timeoutId = setTimeout(() => {
+      setFlightToFocus(null);
+    }, 1600); // Slightly longer than flyTo duration
+
+    return () => clearTimeout(timeoutId);
+  }, [flightToFocus]);
 
   const FLIGHT_DURATION = 2000; // Duration of each flight animation in milliseconds
   const NUM_CYCLES = 30; // Number of overlapping cycles per flight for continuous animation
@@ -175,53 +214,6 @@ export function DefinitiveDemo() {
     return [currentTime, currentTime + TIME_WINDOW];
   }, [currentTime]);
 
-  // Create animated arc layer
-  const layers = useMemo(() => {
-    if (animatedFlights.length === 0) return null;
-
-    const animatedLayer = new AnimatedArcLayer<(typeof animatedFlights)[0]>({
-      id: `flights-animated-${selectedFlightIndex ?? "none"}`,
-      data: animatedFlights,
-      getSourcePosition: (d: (typeof animatedFlights)[0]) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return [d.lon1, d.lat1, d.alt1] as any;
-      },
-      getTargetPosition: (d: (typeof animatedFlights)[0]) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return [d.lon2, d.lat2, d.alt2] as any;
-      },
-      getSourceTimestamp: (d: (typeof animatedFlights)[0]) => d.time1,
-      getTargetTimestamp: (d: (typeof animatedFlights)[0]) => d.time2,
-      getHeight: 0.3,
-      getWidth: 2,
-      timeRange,
-      getSourceColor: (d: (typeof animatedFlights)[0]) => {
-        // Blue color for selected: rgba(59, 130, 246, 255)
-        // White color for unselected: rgba(255, 255, 255, 255)
-        const isSelected = selectedFlightIndex === d.flightIndex;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (isSelected ? [59, 130, 246, 255] : [255, 255, 255, 255]) as any;
-      },
-      getTargetColor: (d: (typeof animatedFlights)[0]) => {
-        const isSelected = selectedFlightIndex === d.flightIndex;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (isSelected ? [59, 130, 246, 255] : [255, 255, 255, 255]) as any;
-      },
-      updateTriggers: {
-        getSourceColor: [selectedFlightIndex],
-        getTargetColor: [selectedFlightIndex],
-        data: selectedFlightIndex,
-      },
-      parameters: { cullMode: "none" },
-      beforeId: "watername_ocean",
-      greatCircle: true,
-      numSegments: 100,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-
-    return [animatedLayer];
-  }, [animatedFlights, timeRange, selectedFlightIndex]);
-
   const handleFlightClick = useCallback((index: number, flight: Flight) => {
     setSelectedFlightIndex(index);
 
@@ -248,18 +240,75 @@ export function DefinitiveDemo() {
     else if (maxDiff < 5) zoom = 3;
     else zoom = 2;
 
-    // Use the map ref to fly to the location
-    if (mapRef.current) {
-      const map = mapRef.current.getMap();
-      if (map && typeof map.flyTo === "function") {
-        map.flyTo({
-          center: [centerLon, centerLat],
-          zoom: zoom,
-          duration: 1500,
-        });
-      }
-    }
+    // Set flight to focus, which will trigger useEffect to fly to location
+    setFlightToFocus({
+      center: [centerLon, centerLat],
+      zoom: zoom,
+    });
   }, []);
+
+  // Create animated arc layer
+  const layers = useMemo(() => {
+    if (animatedFlights.length === 0) return null;
+
+    const animatedLayer = new AnimatedArcLayer<(typeof animatedFlights)[0]>({
+      id: `flights-animated-${selectedFlightIndex ?? "none"}`,
+      data: animatedFlights,
+      getSourcePosition: (d: (typeof animatedFlights)[0]) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return [d.lon1, d.lat1, d.alt1] as any;
+      },
+      getTargetPosition: (d: (typeof animatedFlights)[0]) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return [d.lon2, d.lat2, d.alt2] as any;
+      },
+      getSourceTimestamp: (d: (typeof animatedFlights)[0]) => d.time1,
+      getTargetTimestamp: (d: (typeof animatedFlights)[0]) => d.time2,
+      getHeight: 0.2,
+      getWidth: 3,
+      timeRange,
+      getSourceColor: (d: (typeof animatedFlights)[0]) => {
+        // Blue color for selected: rgba(59, 130, 246, 255)
+        // White color for unselected: rgba(255, 255, 255, 255)
+        const isSelected = selectedFlightIndex === d.flightIndex;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (isSelected ? [59, 130, 246, 255] : [255, 255, 255, 255]) as any;
+      },
+      getTargetColor: (d: (typeof animatedFlights)[0]) => {
+        const isSelected = selectedFlightIndex === d.flightIndex;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (isSelected ? [59, 130, 246, 255] : [255, 255, 255, 255]) as any;
+      },
+      updateTriggers: {
+        getSourceColor: [selectedFlightIndex],
+        getTargetColor: [selectedFlightIndex],
+        data: selectedFlightIndex,
+      },
+      parameters: { cullMode: "none" },
+      beforeId: "watername_ocean",
+      greatCircle: true,
+      numSegments: 100,
+      pickable: true,
+      onClick: (info: { object?: (typeof animatedFlights)[0] }) => {
+        if (info.object) {
+          const flightIndex = info.object.flightIndex;
+          const flight = flights[flightIndex];
+          if (flight) {
+            handleFlightClick(flightIndex, flight);
+          }
+        }
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+
+    return [animatedLayer];
+  }, [
+    animatedFlights,
+    timeRange,
+    selectedFlightIndex,
+    flights,
+    handleFlightClick,
+  ]);
 
   return (
     <div
