@@ -9,7 +9,7 @@ import { FullAiDemo } from "./demos/full-ai/FullAiDemo";
 import { DefinitiveDemoWrapper } from "./demos/definitive/DefinitiveDemo";
 
 function App() {
-  const [activeDemo, setActiveDemo] = useState<string | null>(null);
+  const [activeDemo, setActiveDemo] = useState<string | null>("definitive");
 
   const handleDemoSelect = (demoId: string) => {
     setActiveDemo(demoId);
@@ -26,7 +26,7 @@ function App() {
       ) : (
         <div className="demo-container">
           <button className="back-button" onClick={handleBackToDashboard}>
-            ← Back to Dashboard
+            View previous demos
           </button>
           {activeDemo === "mapbox" && <MapboxDemo />}
           {activeDemo === "deckgl-mapbox" && <DeckGlMapboxDemo />}
