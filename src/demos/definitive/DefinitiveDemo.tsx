@@ -1,18 +1,15 @@
-// deck.gl
-// SPDX-License-Identifier: MIT
-// Copyright (c) vis.gl contributors
-
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import "maplibre-gl/dist/maplibre-gl.css";
-import { Map, useControl } from "react-map-gl/maplibre";
-import type { ViewState, MapRef } from "react-map-gl/maplibre";
 import { MapboxOverlay as DeckOverlay } from "@deck.gl/mapbox";
-
+import { ScenegraphLayer } from "@deck.gl/mesh-layers";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MapRef, ViewState } from "react-map-gl/maplibre";
+import { Map, useControl } from "react-map-gl/maplibre";
+import airplaneModel from "../../assets/airplane.glb?url";
+import flightsData from "../../flights.json";
 import AnimatedArcLayer from "./animated-arc-group-layer";
+import "./DefinitiveDemo.css";
 import { MapControls } from "./MapControls";
 import type { MapProjection } from "./types";
-import flightsData from "../../flights.json";
-import "./DefinitiveDemo.css";
 
 const INITIAL_VIEW_STATE: ViewState = {
   longitude: 0,
@@ -116,6 +113,191 @@ export function DefinitiveDemo() {
   const mapRef = useRef<MapRef>(null);
 
   const flights = flightsData as Flight[];
+
+  // Calculate bearing (direction) from start to end point
+  const calculateBearing = (
+    start: [number, number],
+    end: [number, number]
+  ): number => {
+    const lat1 = (start[1] * Math.PI) / 180;
+    const lat2 = (end[1] * Math.PI) / 180;
+    const lon1 = (start[0] * Math.PI) / 180;
+    const lon2 = (end[0] * Math.PI) / 180;
+
+    const dLon = lon2 - lon1;
+
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x =
+      Math.cos(lat1) * Math.sin(lat2) -
+      Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+
+    let bearing = Math.atan2(y, x);
+    bearing = (bearing * 180) / Math.PI;
+    bearing = (bearing + 360) % 360;
+
+    return bearing;
+  };
+
+  // Calculate great circle distance in meters (same as ArcLayer uses)
+  const EARTH_RADIUS = 6371000; // Earth radius in meters
+  const calculateGreatCircleDistance = (
+    start: [number, number],
+    end: [number, number]
+  ): number => {
+    const lat1 = (start[1] * Math.PI) / 180;
+    const lon1 = (start[0] * Math.PI) / 180;
+    const lat2 = (end[1] * Math.PI) / 180;
+    const lon2 = (end[0] * Math.PI) / 180;
+
+    // Normalize longitude difference
+    let lonDiff = lon2 - lon1;
+    if (lonDiff > Math.PI) lonDiff -= 2 * Math.PI;
+    if (lonDiff < -Math.PI) lonDiff += 2 * Math.PI;
+
+    // Great circle distance in radians
+    const angularDist = Math.acos(
+      Math.sin(lat1) * Math.sin(lat2) +
+        Math.cos(lat1) * Math.cos(lat2) * Math.cos(lonDiff)
+    );
+
+    // Convert to meters
+    return angularDist * EARTH_RADIUS;
+  };
+
+  // Replicate ArcLayer's paraboloid function to calculate arc height
+  // This matches the calculation in arc-layer-vertex.glsl.ts
+  const calculateArcHeight = (
+    distance: number,
+    sourceZ: number,
+    targetZ: number,
+    ratio: number,
+    heightMultiplier: number
+  ): number => {
+    const deltaZ = targetZ - sourceZ;
+    const dh = distance * heightMultiplier;
+
+    if (dh === 0) {
+      return sourceZ + deltaZ * ratio;
+    }
+
+    const unitZ = deltaZ / dh;
+    const p2 = unitZ * unitZ + 1.0;
+
+    // Handle negative deltaZ by flipping
+    const dir = deltaZ < 0 ? 1 : 0;
+    const z0 = dir === 0 ? sourceZ : targetZ;
+    const r = dir === 0 ? ratio : 1.0 - ratio;
+
+    return Math.sqrt(r * (p2 - r)) * dh + z0;
+  };
+
+  // Get position along great circle arc at given progress percentage
+  const getPositionAtProgress = (
+    start: [number, number],
+    end: [number, number],
+    progress: number
+  ): [number, number] => {
+    const t = progress / 100;
+
+    // Convert to radians
+    const lat1 = (start[1] * Math.PI) / 180;
+    const lon1 = (start[0] * Math.PI) / 180;
+    const lat2 = (end[1] * Math.PI) / 180;
+    const lon2 = (end[0] * Math.PI) / 180;
+
+    // Normalize longitude difference
+    let lonDiff = lon2 - lon1;
+    if (lonDiff > Math.PI) lonDiff -= 2 * Math.PI;
+    if (lonDiff < -Math.PI) lonDiff += 2 * Math.PI;
+
+    // Great circle distance
+    const d = Math.acos(
+      Math.sin(lat1) * Math.sin(lat2) +
+        Math.cos(lat1) * Math.cos(lat2) * Math.cos(lonDiff)
+    );
+
+    // Handle edge cases
+    if (isNaN(d) || d === 0) {
+      return start;
+    }
+
+    // Intermediate point calculation
+    const a = Math.sin((1 - t) * d) / Math.sin(d);
+    const b = Math.sin(t * d) / Math.sin(d);
+
+    const x =
+      a * Math.cos(lat1) * Math.cos(lon1) + b * Math.cos(lat2) * Math.cos(lon2);
+    const y =
+      a * Math.cos(lat1) * Math.sin(lon1) + b * Math.cos(lat2) * Math.sin(lon2);
+    const z = a * Math.sin(lat1) + b * Math.sin(lat2);
+
+    const lat = Math.atan2(z, Math.sqrt(x * x + y * y));
+    let lon = Math.atan2(y, x);
+
+    // Convert back to degrees and normalize longitude
+    lon = (lon * 180) / Math.PI;
+    while (lon < -180) lon += 360;
+    while (lon > 180) lon -= 360;
+
+    return [lon, (lat * 180) / Math.PI];
+  };
+
+  // Calculate airplane positions and orientations based on progress
+  // Based on deck.gl scenegraph example: https://github.com/visgl/deck.gl/tree/9.2-release/examples/website/scenegraph
+  const ARC_HEIGHT = 0.2; // Same as getHeight in AnimatedArcLayer
+  const airplaneData = useMemo(() => {
+    return flights.map((flight, index) => {
+      const [lon, lat] = getPositionAtProgress(
+        flight.start,
+        flight.end,
+        flight.progress
+      );
+
+      // Calculate direction by looking at a point slightly ahead on the path
+      // This ensures the airplane points in the direction it's moving
+      const nextProgress = Math.min(flight.progress + 1, 100);
+      const [nextLon, nextLat] = getPositionAtProgress(
+        flight.start,
+        flight.end,
+        nextProgress
+      );
+
+      // Calculate bearing from current position to next position
+      const bearing = calculateBearing([lon, lat], [nextLon, nextLat]);
+
+      // Calculate arc height at this progress point
+      // Replicate the same calculation ArcLayer uses
+      const distance = calculateGreatCircleDistance(flight.start, flight.end);
+      const progressRatio = flight.progress / 100; // Convert to 0-1
+      const sourceZ = 0; // Arc starts at ground level
+      const targetZ = 0; // Arc ends at ground level
+      const arcHeight = calculateArcHeight(
+        distance,
+        sourceZ,
+        targetZ,
+        progressRatio,
+        ARC_HEIGHT
+      );
+      // Elevate airplane 50 meters above the arc
+      const airplaneHeight = arcHeight;
+
+      // Based on deck.gl scenegraph example:
+      // Orientation format: [pitch, yaw, roll] in DEGREES (not radians!)
+      // - pitch: 0 for level flight (we don't have vertical rate)
+      // - yaw: -bearing (negated, like in the example with TRUE_TRACK)
+      // - roll: 90 degrees (this rotates the model to correct orientation)
+      const mapType = projection === "mercator" ? "mercator" : "globe";
+      const pitch = 0; // Level flight
+      const yaw = mapType === "mercator" ? -bearing + 90 : -bearing - 90; // Negated bearing in degrees
+      const roll = 90; // Rotate model 90 degrees
+
+      return {
+        position: [lon, lat, airplaneHeight], // Height calculated from arc + 50 meters above
+        orientation: [pitch, yaw, roll], // [pitch, yaw, roll] in DEGREES
+        flightIndex: index,
+      };
+    });
+  }, [flights, projection]);
 
   // Handle map flyTo when flightToFocus changes
   useEffect(() => {
@@ -302,13 +484,52 @@ export function DefinitiveDemo() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
 
-    return [animatedLayer];
+    const scenegraphLayer = new ScenegraphLayer<(typeof airplaneData)[0]>({
+      id: "airplanes",
+      data: airplaneData,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      getPosition: (d: (typeof airplaneData)[0]) => d.position as any,
+      getOrientation: (d: (typeof airplaneData)[0]) =>
+        d.orientation as [number, number, number],
+      getColor: (d: (typeof airplaneData)[0]) => {
+        const isSelected = selectedFlightIndex === d.flightIndex;
+        // Blue when not selected: rgba(59, 130, 246, 255)
+        // Light gray when selected: rgba(200, 200, 200, 255)
+        return isSelected ? [200, 200, 200, 255] : [59, 130, 246, 255];
+      },
+      scenegraph: airplaneModel,
+      sizeScale: 1,
+      _animations: {
+        "*": {
+          speed: 1,
+        },
+      },
+      sizeMinPixels: 3,
+      sizeMaxPixels: 3,
+      _lighting: "flat",
+      pickable: true,
+      onClick: (info: { object?: (typeof airplaneData)[0] }) => {
+        if (info.object) {
+          const flightIndex = info.object.flightIndex;
+          const flight = flights[flightIndex];
+          if (flight) {
+            handleFlightClick(flightIndex, flight);
+          }
+        }
+      },
+      updateTriggers: {
+        getColor: [selectedFlightIndex],
+      },
+    });
+
+    return [animatedLayer, scenegraphLayer];
   }, [
     animatedFlights,
     timeRange,
     selectedFlightIndex,
     flights,
     handleFlightClick,
+    airplaneData,
   ]);
 
   return (

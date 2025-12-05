@@ -58,20 +58,13 @@ export default class AnimatedArcLayer<
       "vs:#decl": `\
 in float instanceSourceTimestamp;
 in float instanceTargetTimestamp;
-in float instanceProgress;
 out float vTimestamp;
-out float vProgress;
-out float vSegmentRatio;
 `,
       "vs:#main-end": `\
 vTimestamp = mix(instanceSourceTimestamp, instanceTargetTimestamp, segmentRatio);
-vProgress = instanceProgress / 100.0;
-vSegmentRatio = segmentRatio;
 `,
       "fs:#decl": `\
 in float vTimestamp;
-in float vProgress;
-in float vSegmentRatio;
 `,
       "fs:#main-start": `\
 if (vTimestamp < trips.timeRange.x || vTimestamp > trips.timeRange.y) {
@@ -80,10 +73,6 @@ if (vTimestamp < trips.timeRange.x || vTimestamp > trips.timeRange.y) {
 `,
       "fs:DECKGL_FILTER_COLOR": `\
 color.a *= (vTimestamp - trips.timeRange.x) / (trips.timeRange.y - trips.timeRange.x);
-
-if (abs(vSegmentRatio - vProgress) < 0.03) {
-  color.rgb = vec3(1.0, 0.0, 0.0);
-}
 `,
     };
     shaders.modules = [...shaders.modules, tripsUniforms];
