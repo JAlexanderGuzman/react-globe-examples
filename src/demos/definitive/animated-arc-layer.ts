@@ -1,11 +1,12 @@
-// deck.gl
-// SPDX-License-Identifier: MIT
-// Copyright (c) vis.gl contributors
-
+import type { DefaultProps, UpdateParameters } from "@deck.gl/core";
+import { CompositeLayer } from "@deck.gl/core";
 import { ArcLayer } from "@deck.gl/layers";
-import type { DefaultProps } from "@deck.gl/core";
-
 import type { ShaderModule } from "@luma.gl/shadertools";
+import {
+  isGroupVisible,
+  sortAndGroup,
+  type ArcsGroup,
+} from "./helpers/layer-utils";
 
 const uniformBlock = `\
 uniform tripsUniforms {
@@ -26,11 +27,10 @@ export const tripsUniforms = {
   },
 } as const satisfies ShaderModule<TripsProps>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AnimatedArcLayerProps<DataT = any> = _AnimatedArcLayerProps<DataT>;
+export type AnimatedArcLayerProps<DataT = unknown> =
+  _AnimatedArcLayerProps<DataT>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type _AnimatedArcLayerProps<DataT = any> = {
+type _AnimatedArcLayerProps<DataT = unknown> = {
   getSourceTimestamp?: (d: DataT) => number;
   getTargetTimestamp?: (d: DataT) => number;
   getProgress?: (d: DataT) => number;
@@ -44,11 +44,17 @@ const defaultProps = {
   timeRange: { type: "array", compare: true, value: [0, 1] },
 } as DefaultProps<_AnimatedArcLayerProps>;
 
+/**
+ * Animated Arc Layer - Base implementation
+ * Extends ArcLayer with time-based animation support
+ */
 export default class AnimatedArcLayer<
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  DataT = any,
+  DataT = unknown,
   ExtraProps = Record<string, unknown>
-> extends ArcLayer<DataT, ExtraProps & Required<_AnimatedArcLayerProps>> {
+> extends ArcLayer<
+  DataT,
+  ExtraProps & Required<_AnimatedArcLayerProps<DataT>>
+> {
   layerName = "AnimatedArcLayer";
   defaultProps = defaultProps;
 
@@ -100,8 +106,7 @@ color.a *= (vTimestamp - trips.timeRange.x) / (trips.timeRange.y - trips.timeRan
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  draw(params: any) {
+  draw(params: Parameters<ArcLayer<DataT>["draw"]>[0]): void {
     const { timeRange } = this.props;
     const tripsProps: TripsProps = { timeRange };
     const model = this.state.model;
@@ -109,5 +114,47 @@ color.a *= (vTimestamp - trips.timeRange.x) / (trips.timeRange.y - trips.timeRan
       model.shaderInputs.setProps({ trips: tripsProps });
     }
     super.draw(params);
+  }
+}
+
+export class AnimatedArcGroupLayer<
+  DataT = unknown,
+  ExtraProps = Record<string, unknown>
+> extends CompositeLayer<ExtraProps & Required<AnimatedArcLayerProps<DataT>>> {
+  static layerName = "AnimatedArcGroupLayer";
+  layerName = "AnimatedArcGroupLayer";
+  defaultProps = AnimatedArcLayer.defaultProps;
+
+  declare state: {
+    groups: ArcsGroup<DataT>[];
+  };
+
+  updateState({ props, changeFlags }: UpdateParameters<this>): void {
+    if (changeFlags.dataChanged) {
+      const { data, getSourceTimestamp, getTargetTimestamp } = props;
+      const groups = sortAndGroup(
+        data as DataT[],
+        getSourceTimestamp,
+        getTargetTimestamp
+      );
+      this.setState({ groups });
+    }
+  }
+
+  renderLayers(): AnimatedArcLayer<DataT>[] {
+    const { timeRange } = this.props;
+    const { groups = [] } = this.state;
+
+    return groups.map(
+      (group, index) =>
+        new AnimatedArcLayer<DataT>(
+          this.getSubLayerProps({
+            id: index.toString(),
+            data: group.data,
+            visible: isGroupVisible(group, timeRange),
+            timeRange,
+          })
+        )
+    );
   }
 }
